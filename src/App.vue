@@ -1,14 +1,21 @@
 <script setup>
 import LogicTree from './components/LogicTree.vue';
 import NavigationWindow from './components/NavigationWindow.vue';
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue'; // nextTickをインポート
 
 const layoutDirection = ref('vertical'); // レイアウト方向 ('vertical' = 上下, 'horizontal' = 左右)
+const logicTreeRef = ref(null); // LogicTreeの参照を管理
+
 // レイアウトの方向を切り替える
 const toggleLayoutDirection = () => {
   layoutDirection.value = layoutDirection.value === 'vertical' ? 'horizontal' : 'vertical';
-  // ノード再配置
-  updateTree([...nodes.value]); // これによりノードの再配置がトリガーされる
+
+  // DOM更新後に`arrangeNodes`を呼び出す
+  nextTick(() => {
+    if (logicTreeRef.value) {
+      logicTreeRef.value.arrangeNodes(logicTreeRef.value.nodes);
+    }
+  });
 };
 // データをエクスポート（JSONとしてコピー）
 const exportData = () => {
@@ -72,15 +79,18 @@ const toggleNavVisibility = () => {
 
 <template>
   <div style="display: flex; height: 100vh; width: 100vw; padding: 0; overflow: hidden;">
-    <button @click="exportData" style="position: fixed; bottom: 10px; left: 10px; z-index: 1000;">
+    <button @click="exportData" style="position: fixed; top: 8px; left: 10px; z-index: 1000;">
       コピー
     </button>
-    <button @click="importData" style="position: fixed; bottom: 10px; left: 80px; z-index: 1000;">
+    <button @click="importData" style="position: fixed; top: 8px; left: 80px; z-index: 1000;">
       貼り付け
     </button>
     <!-- 上下/左右切り替えボタン -->
-    <button @click="toggleLayoutDirection" style="position: fixed; bottom: 10px; left: 170px; z-index: 1000;">
+    <button @click="toggleLayoutDirection" style="position: fixed; top: 8px; left: 170px; z-index: 1000;">
       {{ layoutDirection === 'vertical' ? '左右' : '上下' }}
+    </button>
+    <button @click="$refs.logicTree.resetZoom()" style="position: fixed; top: 8px; left: 238.5px; z-index: 1000;">
+      全体表示
     </button>
     <!-- ロジックツリー -->
     <div
@@ -95,6 +105,7 @@ const toggleNavVisibility = () => {
       }"
     >
       <LogicTree
+        ref="logicTree"
         :nodes="nodes"
         :selectedNode="selectedNode"
         :layoutDirection="layoutDirection"

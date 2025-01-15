@@ -1,6 +1,14 @@
 <template>
-  <div class="logic-tree">
-    <svg :width="svgWidth" :height="svgHeight" ref="svgElement">
+  <div class="logic-tree" @contextmenu.prevent>
+    <svg
+      :width="svgWidth"
+      :height="svgHeight"
+      ref="svgElement"
+      @mousedown="startDrag"
+      @mousemove="onDrag"
+      @mouseup="endDrag"
+      @mouseleave="endDrag"
+    >
       <!-- スケールと中央揃えを適用 -->
       <g :transform="`translate(${offsetX}, ${offsetY}) scale(${scale})`">
         <!-- ノード間の線を描画 -->
@@ -39,7 +47,7 @@ import TreeNode from './TreeNode.vue';
 export default {
   components: { TreeNode },
   props: ['nodes', 'selectedNode', 'editingNodeId', 'layoutDirection'],
-  emits: ['select-node', 'update-tree', 'update-label',],
+  emits: ['select-node', 'update-tree', 'update-label'],
   data() {
     return {
       globalNodeCounter: 1,
@@ -48,18 +56,24 @@ export default {
       nodeSpacingX: 120,
       svgWidth: 0,
       svgHeight: window.innerHeight,
-      scale: 1, // ツリーのスケール値
-      offsetX: 0, // 中央揃え用Xオフセット
-      offsetY: 0, // 中央揃え用Yオフセット
+      scale: 1, // 現在のスケール値
+      minScale: 0.5, // 最小スケール
+      maxScale: 2, // 最大スケール
+      offsetX: 0, // オフセットX
+      offsetY: 0, // オフセットY
       padding: 20, // 余白 (px)
+      isDragging: false, // ドラッグ中フラグ
+      dragStart: { x: 0, y: 0 }, // ドラッグ開始位置
     };
   },
   mounted() {
     this.updateSVGWidth();
     window.addEventListener('resize', this.updateSVGWidth);
+    this.$refs.svgElement.addEventListener('wheel', this.handleZoom); // マウスホイールを監視
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateSVGWidth);
+    this.$refs.svgElement.removeEventListener('wheel', this.handleZoom);
   },
   methods: {
     calculateRequiredWidth(node, nodes) {
@@ -117,26 +131,69 @@ export default {
       this.arrangeNodes(this.nodes);
     },
     updateScale() {
-      // ノードの最小・最大座標を取得
       const minX = Math.min(...this.nodes.map(node => node.x || 0));
       const maxX = Math.max(...this.nodes.map(node => node.x || 0));
       const minY = Math.min(...this.nodes.map(node => node.y || 0));
       const maxY = Math.max(...this.nodes.map(node => node.y || 0));
 
-      // 必要な幅と高さを計算し、余白を追加
       const treeWidth = maxX - minX + this.nodeSpacingX + this.padding * 2;
       const treeHeight = maxY - minY + this.nodeSpacingY + this.padding * 2;
 
-      // 画面の幅と高さに合わせてスケールを計算
       const availableWidth = this.svgWidth - this.padding * 2;
       const scaleX = availableWidth / treeWidth;
       const scaleY = this.svgHeight / treeHeight;
 
       this.scale = Math.min(scaleX, scaleY, 1); // スケールは1以下に限定
 
-      // 中央揃え用のオフセットを計算 (余白を含める)
       this.offsetX = this.padding + (availableWidth - treeWidth * this.scale) / 2 - minX * this.scale + 12;
       this.offsetY = this.padding + (this.svgHeight - treeHeight * this.scale) / 2 - minY * this.scale;
+    },
+    handleZoom(event) {
+      event.preventDefault();
+
+      // マウスカーソルの位置を取得
+      const cursorX = event.offsetX;
+      const cursorY = event.offsetY;
+
+      // スケール変更
+      const delta = event.deltaY > 0 ? -0.1 : 0.1;
+      const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+
+      // カーソルを中心に拡大縮小
+      this.offsetX += (cursorX - this.offsetX) * (1 - newScale / this.scale);
+      this.offsetY += (cursorY - this.offsetY) * (1 - newScale / this.scale);
+
+      this.scale = newScale;
+    },
+    startDrag(event) {
+      this.isDragging = true;
+      this.dragStart = { x: event.clientX, y: event.clientY };
+    },
+    onDrag(event) {
+      if (!this.isDragging) return;
+
+      // ドラッグ量を計算
+      const dx = event.clientX - this.dragStart.x;
+      const dy = event.clientY - this.dragStart.y;
+
+      // オフセットを更新
+      this.offsetX += dx;
+      this.offsetY += dy;
+
+      // ドラッグ開始位置を更新
+      this.dragStart = { x: event.clientX, y: event.clientY };
+    },
+    endDrag() {
+      this.isDragging = false;
+    },
+    resetZoom() {
+      this.updateScale(); // 全体表示にリセット
+    },
+    getNode(nodeId) {
+      return this.nodes.find(node => node.id === nodeId) || null;
+    },
+    selectNode(node) {
+      this.$emit('select-node', node);
     },
     addChildNode(parentNode) {
       const newNode = {
@@ -150,12 +207,6 @@ export default {
       const updatedNodes = [...this.nodes, newNode];
       this.arrangeNodes(updatedNodes);
     },
-    getNode(nodeId) {
-      return this.nodes.find(node => node.id === nodeId) || null;
-    },
-    selectNode(node) {
-      this.$emit('select-node', node);
-    },
     updateNodeLabel({ id, label }) {
       const targetNode = this.nodes.find(node => node.id === id);
       if (targetNode) {
@@ -164,23 +215,19 @@ export default {
       }
     },
     deleteNode(targetNode) {
-      // 削除対象ノードとその子ノードをすべて削除
       const deleteNodeRecursively = (nodeId, nodes) => {
         return nodes.filter(node => node.id !== nodeId && node.parentId !== nodeId);
       };
-
-      // ノードリストを更新し、削除を反映
       const updatedNodes = deleteNodeRecursively(targetNode.id, this.nodes);
-      this.$emit('update-tree', updatedNodes); // ナビゲーションにも通知
-      this.arrangeNodes(updatedNodes); // 削除後の再配置
+      this.$emit('update-tree', updatedNodes);
+      this.arrangeNodes(updatedNodes);
     },
   },
   watch: {
     layoutDirection: {
-      immediate: true,
-      handler(newDirection) {
-        console.log(`レイアウト方向が${newDirection}に変更されました`);
-        this.arrangeNodes(this.nodes); // ノードの再配置をトリガー
+      immediate: true, // 初期化時にも実行
+      handler() {
+        this.arrangeNodes(this.nodes); // レイアウト変更時にノード再配置
       },
     },
   },
