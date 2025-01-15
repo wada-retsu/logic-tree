@@ -3,6 +3,13 @@ import LogicTree from './components/LogicTree.vue';
 import NavigationWindow from './components/NavigationWindow.vue';
 import { ref } from 'vue';
 
+const layoutDirection = ref('vertical'); // レイアウト方向 ('vertical' = 上下, 'horizontal' = 左右)
+// レイアウトの方向を切り替える
+const toggleLayoutDirection = () => {
+  layoutDirection.value = layoutDirection.value === 'vertical' ? 'horizontal' : 'vertical';
+  // ノード再配置
+  updateTree([...nodes.value]); // これによりノードの再配置がトリガーされる
+};
 // データをエクスポート（JSONとしてコピー）
 const exportData = () => {
   const dataStr = JSON.stringify(nodes.value, null, 2); // 階層構造をJSON化
@@ -71,6 +78,10 @@ const toggleNavVisibility = () => {
     <button @click="importData" style="position: fixed; bottom: 10px; left: 80px; z-index: 1000;">
       貼り付け
     </button>
+    <!-- 上下/左右切り替えボタン -->
+    <button @click="toggleLayoutDirection" style="position: fixed; bottom: 10px; left: 170px; z-index: 1000;">
+      {{ layoutDirection === 'vertical' ? '左右' : '上下' }}
+    </button>
     <!-- ロジックツリー -->
     <div
       :style="{
@@ -86,6 +97,7 @@ const toggleNavVisibility = () => {
       <LogicTree
         :nodes="nodes"
         :selectedNode="selectedNode"
+        :layoutDirection="layoutDirection"
         @select-node="selectNode"
         :globalNodeCounter="globalNodeCounter"
         @update-tree="updateTree"

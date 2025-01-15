@@ -38,8 +38,8 @@ import TreeNode from './TreeNode.vue';
 
 export default {
   components: { TreeNode },
-  props: ['nodes', 'selectedNode', 'editingNodeId'],
-  emits: ['select-node', 'update-tree', 'update-label'],
+  props: ['nodes', 'selectedNode', 'editingNodeId', 'layoutDirection'],
+  emits: ['select-node', 'update-tree', 'update-label',],
   data() {
     return {
       globalNodeCounter: 1,
@@ -70,23 +70,39 @@ export default {
       }
       return children.reduce((total, child) => total + this.calculateRequiredWidth(child, nodes), 0);
     },
-    calculateNodePositions(node, nodes, x, depth) {
+    calculateNodePositions(node, nodes, primary, depth) {
       if (!node) return;
       const children = nodes.filter(n => n.parentId === node.id);
       if (children.length === 0) {
-        node.x = x;
-        node.y = this.baseY + depth * this.nodeSpacingY;
+        if (this.layoutDirection === 'vertical') {
+          node.x = primary;
+          node.y = this.baseY + depth * this.nodeSpacingY;
+        } else {
+          node.x = this.baseY + depth * this.nodeSpacingX;
+          node.y = primary;
+        }
         return;
       }
-      const totalWidth = children.reduce((total, child) => total + this.calculateRequiredWidth(child, nodes), 0);
-      let currentX = x - totalWidth / 2;
+
+      const totalWidth = children.reduce(
+        (total, child) => total + this.calculateRequiredWidth(child, nodes),
+        0
+      );
+
+      let currentPrimary = primary - totalWidth / 2;
       children.forEach(child => {
         const childWidth = this.calculateRequiredWidth(child, nodes);
-        this.calculateNodePositions(child, nodes, currentX + childWidth / 2, depth + 1);
-        currentX += childWidth;
+        this.calculateNodePositions(child, nodes, currentPrimary + childWidth / 2, depth + 1);
+        currentPrimary += childWidth;
       });
-      node.x = x;
-      node.y = this.baseY + depth * this.nodeSpacingY;
+
+      if (this.layoutDirection === 'vertical') {
+        node.x = primary;
+        node.y = this.baseY + depth * this.nodeSpacingY;
+      } else {
+        node.x = this.baseY + depth * this.nodeSpacingX;
+        node.y = primary;
+      }
     },
     arrangeNodes(nodes) {
       const rootNode = nodes.find(node => node.parentId === null);
@@ -157,6 +173,15 @@ export default {
       const updatedNodes = deleteNodeRecursively(targetNode.id, this.nodes);
       this.$emit('update-tree', updatedNodes); // ナビゲーションにも通知
       this.arrangeNodes(updatedNodes); // 削除後の再配置
+    },
+  },
+  watch: {
+    layoutDirection: {
+      immediate: true,
+      handler(newDirection) {
+        console.log(`レイアウト方向が${newDirection}に変更されました`);
+        this.arrangeNodes(this.nodes); // ノードの再配置をトリガー
+      },
     },
   },
 };
