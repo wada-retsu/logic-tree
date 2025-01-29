@@ -14,13 +14,20 @@
     <text
       v-if="!isEditing"
       :x="0"
-      :y="0"
+      :y="getTextY"
       text-anchor="middle"
-      alignment-baseline="middle"
+      dominant-baseline="central"
       @dblclick="startEditing"
       ref="textElement"
     >
-      {{ node.label }}
+    <tspan 
+      v-for="(line, index) in formatLabel(node.label).split('\n')" 
+      :x="0" 
+      :dy="index === 0 ? 0 : '1.2em'" 
+      :key="index"
+    >
+      {{ line }}
+    </tspan>
     </text>
 
     <!-- 編集モードのinput -->
@@ -72,14 +79,26 @@ export default {
     return {
       isEditing: false, // 編集状態
       editableLabel: this.node.label, // 編集中のラベル
-      nodeWidth: 60, // 初期幅（最低幅）
+      nodeWidth: 110, // 初期幅（最低幅）
       nodeHeight: 40, // 高さ
     };
+  },
+  watch: {
+    'node.label': function () {
+      this.$nextTick(() => {
+        this.updateNodeDimensions();
+      });
+    },
   },
   computed: {
     transform() {
       return `translate(${this.x}, ${this.y})`;
     },
+    getTextY() {
+      const lineCount = this.getLineCount(this.node.label);
+      const offset = (lineCount - 1) * 10; // 1行増えるごとに10px上へ
+      return -offset;
+    }
   },
   methods: {
     selectNode() {
@@ -94,7 +113,7 @@ export default {
       if (this.editableLabel !== this.node.label) {
         this.$emit('update-label', { id: this.node.id, label: this.editableLabel });
       }
-      this.updateNodeWidth(); // 保存時に幅を更新
+      this.updateNodeDimensions(); // 保存時に幅を更新
     },
     addChild() {
       this.$emit('add-child', this.node);
@@ -102,19 +121,35 @@ export default {
     deleteNode() {
       this.$emit('delete-node', this.node); // 削除イベントを親に通知
     },
-    updateNodeWidth() {
-      const textElement = this.$refs.textElement;
-      if (textElement) {
-        const textWidth = textElement.getBBox().width;
-        this.nodeWidth = Math.max(textWidth + 20, 60);
-      }
+    updateNodeDimensions() {
+      this.$nextTick(() => {
+        const textElement = this.$refs.textElement;
+        if (textElement) {
+          setTimeout(() => {
+            const textHeight = textElement.getBBox().height;
+            // ノードの高さをテキストの高さ + 余白20pxで調整
+            this.nodeHeight = textHeight + 20; 
+            
+            // ノードの中心がずれないように調整
+            this.nodeYOffset = -(this.nodeHeight / 2); 
+          }, 10);
+        }
+      });
+    },
+    formatLabel(label) {
+      const chunkSize = 7;
+      const regex = new RegExp(`.{1,${chunkSize}}`, 'g');
+      return label.match(regex).join('\n');
+    },
+    getLineCount(label) {
+      return this.formatLabel(label).split('\n').length;
     },
   },
   mounted() {
-    this.updateNodeWidth();
+    this.updateNodeDimensions();
   },
   updated() {
-    this.updateNodeWidth();
+    this.updateNodeDimensions();
   },
 };
 </script>

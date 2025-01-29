@@ -151,18 +151,15 @@ export default {
     handleZoom(event) {
       event.preventDefault();
 
-      // マウスカーソルの位置を取得
-      const cursorX = event.offsetX;
-      const cursorY = event.offsetY;
+      const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * zoomFactor));
 
-      // スケール変更
-      const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+      // マウスの位置を基準にズーム
+      const cursorX = (event.offsetX - this.offsetX) / this.scale;
+      const cursorY = (event.offsetY - this.offsetY) / this.scale;
 
-      // カーソルを中心に拡大縮小
-      this.offsetX += (cursorX - this.offsetX) * (1 - newScale / this.scale);
-      this.offsetY += (cursorY - this.offsetY) * (1 - newScale / this.scale);
-
+      this.offsetX = event.offsetX - cursorX * newScale;
+      this.offsetY = event.offsetY - cursorY * newScale;
       this.scale = newScale;
     },
     startDrag(event) {
@@ -216,7 +213,12 @@ export default {
     },
     deleteNode(targetNode) {
       const deleteNodeRecursively = (nodeId, nodes) => {
-        return nodes.filter(node => node.id !== nodeId && node.parentId !== nodeId);
+        return nodes.filter(node => node.id !== nodeId && !isChildOf(node, nodeId));
+      };
+      const isChildOf = (node, parentId) => {
+        if (!node.parentId) return false;
+        if (node.parentId === parentId) return true;
+        return isChildOf(this.getNode(node.parentId), parentId);
       };
       const updatedNodes = deleteNodeRecursively(targetNode.id, this.nodes);
       this.$emit('update-tree', updatedNodes);
