@@ -9,9 +9,39 @@
       @mouseup="endDrag"
       @mouseleave="endDrag"
     >
-      <!-- スケールと中央揃えを適用 -->
+      <!-- ツリー全体を移動・ズームできるようにする -->
       <g :transform="`translate(${offsetX}, ${offsetY}) scale(${scale})`">
-        <!-- ノード間の線を描画 -->
+        
+        <!-- 階層ラベル（ツリーと一緒に移動） -->
+        <g v-for="(level, index) in levels" :key="'bg-' + index">
+          <!-- 背景ラベル -->
+          <rect
+          :x="this.layoutDirection === 'vertical' ? getTreeMinX() - padding - 50 : getLevelPosition(index) - nodeSpacingX / 2"
+          :y="this.layoutDirection === 'vertical' ? getLevelPosition(index) - nodeSpacingY / 2 : getTreeMinY() - padding - 50"
+          :width="this.layoutDirection === 'vertical' ? getTreeWidth() + padding * 2 + 100 : nodeSpacingX"
+          :height="this.layoutDirection === 'vertical' ? nodeSpacingY : getTreeHeight() + padding * 2 + 100"
+            fill="lightgray"
+            opacity="0.3"
+          />
+          <!-- ラベル名（ダブルクリックで編集可能） -->
+          <text
+          :x="this.layoutDirection === 'vertical' 
+            ? getTreeMinX() + getTreeWidth() + padding + 120
+            : getLevelPosition(index) - 10"
+          :y="this.layoutDirection === 'vertical' 
+            ? getLevelPosition(index) + 5
+            : getTreeMinY() + getTreeHeight() + padding + 80"
+            text-anchor="end"
+            fill="black"
+            font-size="16"
+            font-weight="bold"
+            @dblclick="editLevelName(index)"
+          >
+            {{ levels[index] }}
+          </text>
+        </g>
+
+        <!-- ノード間の線 -->
         <line
           v-for="node in nodes"
           :key="'line-' + node.id"
@@ -64,6 +94,7 @@ export default {
       padding: 20, // 余白 (px)
       isDragging: false, // ドラッグ中フラグ
       dragStart: { x: 0, y: 0 }, // ドラッグ開始位置
+      levels: ['レベル 1'], // 階層ラベル
     };
   },
   mounted() {
@@ -122,6 +153,7 @@ export default {
       const rootNode = nodes.find(node => node.parentId === null);
       if (!rootNode) return;
       this.calculateNodePositions(rootNode, nodes, this.svgWidth / 2, 0);
+      this.updateLevels(nodes);
       this.$emit('update-tree', [...nodes]);
       this.updateScale(); // スケールを更新
     },
@@ -224,6 +256,40 @@ export default {
       this.$emit('update-tree', updatedNodes);
       this.arrangeNodes(updatedNodes);
     },
+    editLevelName(index) {
+      const newName = prompt('階層名を入力してください:', this.levels[index]);
+      if (newName !== null) {
+        this.levels[index] = newName;
+      }
+    },
+    updateLevels(nodes) {
+      const maxDepth = Math.max(...nodes.map(node => this.getDepth(node.id, nodes)), 0);
+      while (this.levels.length <= maxDepth) {
+        this.levels.push(`レベル ${this.levels.length + 1}`);
+      }
+    },
+    getDepth(nodeId, nodes, depth = 0) {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node || node.parentId === null) return depth;
+      return this.getDepth(node.parentId, nodes, depth + 1);
+    },
+    getLevelPosition(level) {
+      const nodesAtLevel = this.nodes.filter(node => this.getDepth(node.id, this.nodes) === level);
+      if (nodesAtLevel.length === 0) {
+        return this.layoutDirection === 'vertical'
+          ? this.baseY + level * this.nodeSpacingY
+          : this.baseY + level * this.nodeSpacingX;
+      }
+      return this.layoutDirection === 'vertical'
+        ? Math.min(...nodesAtLevel.map(node => node.y))
+        : Math.min(...nodesAtLevel.map(node => node.x));
+    },
+    getTreeMinX() { return Math.min(...this.nodes.map(node => node.x)); },
+    getTreeMaxX() { return Math.max(...this.nodes.map(node => node.x)); },
+    getTreeMinY() { return Math.min(...this.nodes.map(node => node.y)); },
+    getTreeMaxY() { return Math.max(...this.nodes.map(node => node.y)); },
+    getTreeWidth() { return this.getTreeMaxX() - this.getTreeMinX(); },
+    getTreeHeight() { return this.getTreeMaxY() - this.getTreeMinY(); },
   },
   watch: {
     layoutDirection: {
