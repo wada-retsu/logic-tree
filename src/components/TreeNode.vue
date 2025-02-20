@@ -3,7 +3,7 @@
     <!-- ノードの四角形 -->
     <rect
       :x="-(nodeWidth / 2)"
-      :y="-nodeHeight / 2"
+      :y="-(nodeHeight / 2)"
       :width="nodeWidth"
       :height="nodeHeight"
       fill="lightblue"
@@ -17,7 +17,7 @@
       :y="getTextY"
       text-anchor="middle"
       dominant-baseline="central"
-      @dblclick="startEditing"
+      @dblclick="editNodeLabel"
       ref="textElement"
     >
     <tspan 
@@ -39,17 +39,15 @@
         @keydown.enter="saveLabel"
       />
     </foreignObject>
-
     <!-- +ボタンをノードの真下に表示 -->
     <foreignObject
       :x="-(nodeWidth / 2)"
       :y="nodeHeight / 2 - 2"
       :width="nodeWidth"
       height="15"
-      >
-        <button @click.stop="addChild" class="custom-button">+</button>
+    >
+      <button @click.stop="addChild" class="custom-button">+</button>
     </foreignObject>
-
     <!-- -ボタンをノードの真上に表示 -->
     <foreignObject
       v-if="node.parentId"
@@ -128,10 +126,9 @@ export default {
           setTimeout(() => {
             const textHeight = textElement.getBBox().height;
             // ノードの高さをテキストの高さ + 余白20pxで調整
-            this.nodeHeight = textHeight + 20; 
-            
+            this.nodeHeight = textHeight + 20;
             // ノードの中心がずれないように調整
-            this.nodeYOffset = -(this.nodeHeight / 2); 
+            this.nodeYOffset = -(this.nodeHeight / 2);
           }, 10);
         }
       });
@@ -143,6 +140,12 @@ export default {
     },
     getLineCount(label) {
       return this.formatLabel(label).split('\n').length;
+    },
+    editNodeLabel() {
+      const newLabel = prompt('ノード名を入力してください:', this.node.label);
+      if (newLabel !== null && newLabel.trim() !== '') {
+        this.$emit('update-label', { id: this.node.id, label: newLabel });
+      }
     },
   },
   mounted() {

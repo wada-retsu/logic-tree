@@ -3,38 +3,71 @@ import LogicTree from './components/LogicTree.vue';
 import NavigationWindow from './components/NavigationWindow.vue';
 import { ref, nextTick } from 'vue'; // nextTickをインポート
 
-const layoutDirection = ref('vertical'); // レイアウト方向 ('vertical' = 上下, 'horizontal' = 左右)
+const layoutDirection = ref('horizotal'); // レイアウト方向 ('vertical' = 上下, 'horizontal' = 左右)
 const logicTreeRef = ref(null); // LogicTreeの参照を管理
 
 // レイアウトの方向を切り替える
 const toggleLayoutDirection = () => {
   layoutDirection.value = layoutDirection.value === 'vertical' ? 'horizontal' : 'vertical';
 
-  // DOM更新後に`arrangeNodes`を呼び出す
+  // DOM更新後にarrangeNodesを呼び出す
   nextTick(() => {
     if (logicTreeRef.value) {
       logicTreeRef.value.arrangeNodes(logicTreeRef.value.nodes);
     }
   });
 };
-// データをエクスポート（JSONとしてコピー）
+// JSONエクスポート (コピー)
 const exportData = () => {
-  const dataStr = JSON.stringify(nodes.value, null, 2); // 階層構造をJSON化
-  navigator.clipboard.writeText(dataStr).then(() => {
-    alert('データをクリップボードにコピーしました！');
-  }).catch((err) => {
-    console.error('クリップボードへのコピーに失敗しました:', err);
-  });
+  const levelsData = logicTreeRef.value
+    ? logicTreeRef.value.levels.map((level, index) => ({
+        id: index + 1, // 階層の深さを id に対応
+        name: level.name // 名前を保持
+      }))
+    : [];
+
+  const data = {
+    nodes: nodes.value,
+    levels: levelsData, // 階層データを追加
+    globalNodeCounter: globalNodeCounter.value
+  };
+
+  const dataStr = JSON.stringify(data, null, 2);
+  console.log("🔹 エクスポートデータ:", dataStr);
+
+  navigator.clipboard.writeText(dataStr)
+    .then(() => alert('データをクリップボードにコピーしました！'))
+    .catch((err) => console.error('クリップボードへのコピーに失敗しました:', err));
 };
-// データをインポート（JSONを貼り付けて復元）
+
+// JSONインポート（貼り付け）
 const importData = async () => {
   try {
     const dataStr = await navigator.clipboard.readText();
-    const importedNodes = JSON.parse(dataStr);
-    if (Array.isArray(importedNodes)) {
-      nodes.value = importedNodes; // データを復元
+    console.log("🔹 インポートデータ:", dataStr);
+
+    const importedData = JSON.parse(dataStr);
+
+    if (importedData && importedData.nodes && Array.isArray(importedData.nodes)) {
+      nodes.value = importedData.nodes;
+
+      // ノードの最大 ID を取得し、globalNodeCounter を適切に設定
+      globalNodeCounter.value = Math.max(0, ...nodes.value.map(n => parseInt(n.id, 10))) + 1;
+
+      if (logicTreeRef.value) {
+        // 🔹 levels の復元（デフォルトはレベル 1）
+        logicTreeRef.value.levels = importedData.levels?.map(level => ({
+          id: level.id || 1,
+          name: level.name || `レベル ${level.id || 1}`
+        })) || [{ id: 1, name: 'レベル 1' }];
+
+        logicTreeRef.value.arrangeNodes(nodes.value);
+        logicTreeRef.value.updateLevels(nodes.value, logicTreeRef.value.levels);
+      }
+
       alert('データを復元しました！');
     } else {
+      console.error("JSONデータの構造が違います:", importedData);
       alert('データ形式が正しくありません。');
     }
   } catch (err) {
@@ -87,11 +120,11 @@ const toggleNavVisibility = () => {
     </button>
     <!-- 上下/左右切り替えボタン -->
     <button @click="toggleLayoutDirection" style="position: fixed; top: 8px; left: 170px; z-index: 1000;">
-      {{ layoutDirection === 'vertical' ? '左右' : '上下' }}
+      {{ layoutDirection === 'vertical' ? '横' : '縦' }}
     </button>
-    <button @click="$refs.logicTree.resetZoom()" style="position: fixed; top: 8px; left: 238.5px; z-index: 1000;">
+    <!-- <button @click="logicTreeRef.value.resetZoom()" style="position: fixed; top: 8px; left: 238.5px; z-index: 1000;">
       全体表示
-    </button>
+    </button> -->
     <!-- ロジックツリー -->
     <div
       :style="{

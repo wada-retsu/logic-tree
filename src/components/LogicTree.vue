@@ -10,36 +10,50 @@
       @mouseleave="endDrag"
     >
       <!-- ツリー全体を移動・ズームできるようにする -->
-      <g :transform="`translate(${offsetX}, ${offsetY}) scale(${scale})`">
+      <g :transform="'translate(' + offsetX + ', ' + offsetY + ') scale(' + scale + ')'">
         
-        <!-- 階層ラベル（ツリーと一緒に移動） -->
-        <g v-for="(level, index) in levels" :key="'bg-' + index">
-          <!-- 背景ラベル -->
+        <!-- <g v-for="(level, index) in levels" :key="'bg-' + index">
           <rect
-          :x="this.layoutDirection === 'vertical' ? getTreeMinX() - padding - 50 : getLevelPosition(index) - nodeSpacingX / 2"
-          :y="this.layoutDirection === 'vertical' ? getLevelPosition(index) - nodeSpacingY / 2 : getTreeMinY() - padding - 50"
-          :width="this.layoutDirection === 'vertical' ? getTreeWidth() + padding * 2 + 100 : nodeSpacingX"
-          :height="this.layoutDirection === 'vertical' ? nodeSpacingY : getTreeHeight() + padding * 2 + 100"
+            :x="layoutDirection === 'vertical'
+              ? getTreeMinX() - padding - 50
+              : getLevelPosition(index) - nodeSpacingX / 2 + 10"
+            :y="layoutDirection === 'vertical'
+              ? getLevelPosition(index) - nodeSpacingY / 2 + 10
+              : getTreeMinY() - padding - 50"
+            :width="layoutDirection === 'vertical'
+              ? getTreeWidth() + padding * 2 + 100
+              : nodeSpacingX - 15"
+            :height="layoutDirection === 'vertical'
+              ? nodeSpacingY -15
+              : getTreeHeight() + padding * 2 + 100"
             fill="lightgray"
             opacity="0.3"
           />
-          <!-- ラベル名（ダブルクリックで編集可能） -->
           <text
-          :x="this.layoutDirection === 'vertical' 
-            ? getTreeMinX() + getTreeWidth() + padding + 120
-            : getLevelPosition(index) - 10"
-          :y="this.layoutDirection === 'vertical' 
-            ? getLevelPosition(index) + 5
-            : getTreeMinY() + getTreeHeight() + padding + 80"
-            text-anchor="end"
+            :x="layoutDirection === 'vertical'
+                ? getTreeMaxX() + padding + 20
+                : getLevelPosition(index) - nodeSpacingX - 10"
+            :y="layoutDirection === 'vertical'
+                ? getLevelPosition(index) + (nodeSpacingY / 2) - 60
+                : getTreeMaxY() + padding + 80"
+            text-anchor="start"
             fill="black"
             font-size="16"
             font-weight="bold"
             @dblclick="editLevelName(index)"
           >
-            {{ levels[index] }}
+            <tspan
+              v-for="(line, i) in splitText(levels[index]?.name || '')"
+              :key="i"
+              :x="layoutDirection === 'vertical'
+                  ? getTreeMinX() + getTreeWidth() + padding + 60
+                  : getLevelPosition(index) - nodeSpacingX + 70"
+              :dy="i === 0 ? '0' : '1.2em'"
+            >
+              {{ line }}
+            </tspan>
           </text>
-        </g>
+        </g> -->
 
         <!-- ノード間の線 -->
         <line
@@ -94,7 +108,7 @@ export default {
       padding: 20, // 余白 (px)
       isDragging: false, // ドラッグ中フラグ
       dragStart: { x: 0, y: 0 }, // ドラッグ開始位置
-      levels: ['レベル 1'], // 階層ラベル
+      levels: [{ id: 1, name: 'レベル 1' }] // 🔹 階層をオブジェクト形式にする
     };
   },
   mounted() {
@@ -153,9 +167,10 @@ export default {
       const rootNode = nodes.find(node => node.parentId === null);
       if (!rootNode) return;
       this.calculateNodePositions(rootNode, nodes, this.svgWidth / 2, 0);
-      this.updateLevels(nodes);
+
       this.$emit('update-tree', [...nodes]);
-      this.updateScale(); // スケールを更新
+      this.updateLevels(nodes); // 🔹 ノード配置の後に階層ラベルを更新
+      this.updateScale();
     },
     updateSVGWidth() {
       const svgContainer = this.$refs.svgElement.parentElement;
@@ -175,7 +190,7 @@ export default {
       const scaleX = availableWidth / treeWidth;
       const scaleY = this.svgHeight / treeHeight;
 
-      this.scale = Math.min(scaleX, scaleY, 1); // スケールは1以下に限定
+      this.scale = Math.min(scaleX, scaleY, 1);
 
       this.offsetX = this.padding + (availableWidth - treeWidth * this.scale) / 2 - minX * this.scale + 12;
       this.offsetY = this.padding + (this.svgHeight - treeHeight * this.scale) / 2 - minY * this.scale;
@@ -185,8 +200,6 @@ export default {
 
       const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
       const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * zoomFactor));
-
-      // マウスの位置を基準にズーム
       const cursorX = (event.offsetX - this.offsetX) / this.scale;
       const cursorY = (event.offsetY - this.offsetY) / this.scale;
 
@@ -201,22 +214,19 @@ export default {
     onDrag(event) {
       if (!this.isDragging) return;
 
-      // ドラッグ量を計算
       const dx = event.clientX - this.dragStart.x;
       const dy = event.clientY - this.dragStart.y;
 
-      // オフセットを更新
       this.offsetX += dx;
       this.offsetY += dy;
 
-      // ドラッグ開始位置を更新
       this.dragStart = { x: event.clientX, y: event.clientY };
     },
     endDrag() {
       this.isDragging = false;
     },
     resetZoom() {
-      this.updateScale(); // 全体表示にリセット
+      this.updateScale();
     },
     getNode(nodeId) {
       return this.nodes.find(node => node.id === nodeId) || null;
@@ -225,6 +235,8 @@ export default {
       this.$emit('select-node', node);
     },
     addChildNode(parentNode) {
+      const maxId = Math.max(0, ...this.nodes.map(n => parseInt(n.id, 10))) + 1;
+      this.globalNodeCounter = Math.max(this.globalNodeCounter, maxId);
       const newNode = {
         id: this.globalNodeCounter.toString(),
         label: `ノード${this.globalNodeCounter}`,
@@ -232,15 +244,18 @@ export default {
         y: parentNode.y + this.nodeSpacingY,
         parentId: parentNode.id,
       };
+
       this.globalNodeCounter++;
       const updatedNodes = [...this.nodes, newNode];
       this.arrangeNodes(updatedNodes);
+      this.updateLevels(updatedNodes); // 🔹 ノード追加時に階層情報を更新
     },
     updateNodeLabel({ id, label }) {
       const targetNode = this.nodes.find(node => node.id === id);
       if (targetNode) {
         targetNode.label = label;
         this.arrangeNodes([...this.nodes]);
+        this.updateLevels(this.nodes); // 🔹 ノードのラベル変更時に階層情報を更新
       }
     },
     deleteNode(targetNode) {
@@ -255,18 +270,43 @@ export default {
       const updatedNodes = deleteNodeRecursively(targetNode.id, this.nodes);
       this.$emit('update-tree', updatedNodes);
       this.arrangeNodes(updatedNodes);
+      this.updateLevels(updatedNodes);
     },
     editLevelName(index) {
-      const newName = prompt('階層名を入力してください:', this.levels[index]);
+      if (!this.levels[index]) {
+        console.error(`⚠️ 階層 ${index} が存在しません。`);
+        return;
+      }
+
+      const newName = prompt('階層名を入力してください:', this.levels[index].name);
       if (newName !== null) {
-        this.levels[index] = newName;
+        this.levels[index].name = newName;
       }
     },
-    updateLevels(nodes) {
+    updateLevels(nodes, existingLevels = []) {
       const maxDepth = Math.max(...nodes.map(node => this.getDepth(node.id, nodes)), 0);
-      while (this.levels.length <= maxDepth) {
-        this.levels.push(`レベル ${this.levels.length + 1}`);
+     
+      let newLevels = [];
+
+      for (let i = 0; i <= maxDepth; i++) {
+        const existingLevel = existingLevels.find(level => level.id === i + 1);
+        newLevels.push({
+          id: i + 1,
+          name: existingLevel ? existingLevel.name : `レベル ${i + 1}`
+        });
       }
+
+      this.levels = newLevels;
+      console.log("🔹 更新された階層:", this.levels);
+    },
+    arrangeNodes(nodes) {
+      const rootNode = nodes.find(node => node.parentId === null);
+      if (!rootNode) return;
+      this.calculateNodePositions(rootNode, nodes, this.svgWidth / 2, 0);
+
+      this.$emit('update-tree', [...nodes]);
+      this.updateLevels(nodes); // 🔹 ノード配置の後に階層ラベルを更新
+      this.updateScale();
     },
     getDepth(nodeId, nodes, depth = 0) {
       const node = nodes.find(n => n.id === nodeId);
@@ -290,14 +330,46 @@ export default {
     getTreeMaxY() { return Math.max(...this.nodes.map(node => node.y)); },
     getTreeWidth() { return this.getTreeMaxX() - this.getTreeMinX(); },
     getTreeHeight() { return this.getTreeMaxY() - this.getTreeMinY(); },
+   
+    splitText(text) {
+      if (typeof text !== 'string') {
+        console.error("⚠️ splitText() に渡された値が文字列ではありません:", text);
+        return ['']; // 空の配列を返してエラー回避
+      }
+      return text.match(/.{1,7}/g) || [''];
+    },
+    importData(data) {
+      if (!data || !data.nodes || !Array.isArray(data.nodes)) {
+        console.error("⚠️ 無効なデータ:", data);
+        return alert("データ形式が正しくありません。");
+      }
+
+      this.nodes = data.nodes;
+
+      // 🔹 最大IDを取得し、globalNodeCounter を適切に設定
+      const maxId = Math.max(0, ...this.nodes.map(n => parseInt(n.id, 10))) + 1;
+      this.globalNodeCounter = maxId;
+
+      // 🔹 階層ラベルの復元（空の配列でなく、デフォルト値をセット）
+      this.levels = data.levels && data.levels.length > 0 ? data.levels : [{ id: 1, name: 'レベル 1' }];
+
+      // 🔹 ノード配置 & 階層情報を即時更新
+      this.arrangeNodes(this.nodes);
+      this.updateLevels(this.nodes);
+    },
   },
   watch: {
     layoutDirection: {
       immediate: true, // 初期化時にも実行
-      handler() {
+      handler(newVal) {
         this.arrangeNodes(this.nodes); // レイアウト変更時にノード再配置
+        if (Array.isArray(newVal)) {
+        this.updateLevels(newVal); // ノードが変更されたら階層ラベルを更新
+        }
       },
     },
   },
 };
 </script>
+
+
