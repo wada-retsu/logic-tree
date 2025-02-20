@@ -82,7 +82,7 @@ const nodes = ref([
 
 const globalNodeCounter = ref(2);
 const selectedNode = ref(null);
-const isNavVisible = ref(true); // ナビゲーションウィンドウの表示状態
+const isNavVisible = ref(false); // ナビゲーションウィンドウの表示状態
 
 // ノードを選択する
 const selectNode = (node) => {
