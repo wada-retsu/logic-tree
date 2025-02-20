@@ -120,7 +120,7 @@ const toggleNavVisibility = () => {
     </button>
     <!-- 上下/左右切り替えボタン -->
     <button @click="toggleLayoutDirection" style="position: fixed; top: 8px; left: 170px; z-index: 1000;">
-      {{ layoutDirection === 'vertical' ? '横' : '縦' }}
+      {{ layoutDirection === 'vertical' ? '縦' : '横' }}
     </button>
     <!-- <button @click="logicTreeRef.value.resetZoom()" style="position: fixed; top: 8px; left: 238.5px; z-index: 1000;">
       全体表示
