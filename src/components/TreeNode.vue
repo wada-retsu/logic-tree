@@ -17,7 +17,7 @@
       :y="getTextY"
       text-anchor="middle"
       dominant-baseline="central"
-      @dblclick="editNodeLabel"
+      @click="editNodeLabel"
       ref="textElement"
     >
     <tspan 
