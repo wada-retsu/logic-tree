@@ -17,62 +17,20 @@ const toggleLayoutDirection = () => {
     }
   });
 };
-// JSONエクスポート (コピー)
 const exportData = () => {
-  const levelsData = logicTreeRef.value
-    ? logicTreeRef.value.levels.map((level, index) => ({
-        id: index + 1, // 階層の深さを id に対応
-        name: level.name // 名前を保持
-      }))
-    : [];
-
-  const data = {
-    nodes: nodes.value,
-    levels: levelsData, // 階層データを追加
-    globalNodeCounter: globalNodeCounter.value
-  };
-
-  const dataStr = JSON.stringify(data, null, 2);
-  console.log("🔹 エクスポートデータ:", dataStr);
-
+  const dataStr = JSON.stringify(nodes.value, null, 2);
   navigator.clipboard.writeText(dataStr)
-    .then(() => alert('データをクリップボードにコピーしました！'))
-    .catch((err) => console.error('クリップボードへのコピーに失敗しました:', err));
+    .then(() => showNotification('データをコピーしました！'))
+    .catch(() => showNotification('コピーに失敗しました'));
 };
 
-// JSONインポート（貼り付け）
 const importData = async () => {
   try {
     const dataStr = await navigator.clipboard.readText();
-    console.log("🔹 インポートデータ:", dataStr);
-
-    const importedData = JSON.parse(dataStr);
-
-    if (importedData && importedData.nodes && Array.isArray(importedData.nodes)) {
-      nodes.value = importedData.nodes;
-
-      // ノードの最大 ID を取得し、globalNodeCounter を適切に設定
-      globalNodeCounter.value = Math.max(0, ...nodes.value.map(n => parseInt(n.id, 10))) + 1;
-
-      if (logicTreeRef.value) {
-        // 🔹 levels の復元（デフォルトはレベル 1）
-        logicTreeRef.value.levels = importedData.levels?.map(level => ({
-          id: level.id || 1,
-          name: level.name || `レベル ${level.id || 1}`
-        })) || [{ id: 1, name: 'レベル 1' }];
-
-        logicTreeRef.value.arrangeNodes(nodes.value);
-        logicTreeRef.value.updateLevels(nodes.value, logicTreeRef.value.levels);
-      }
-
-      alert('データを復元しました！');
-    } else {
-      console.error("JSONデータの構造が違います:", importedData);
-      alert('データ形式が正しくありません。');
-    }
-  } catch (err) {
-    console.error('データの復元に失敗しました:', err);
-    alert('データの復元に失敗しました。');
+    nodes.value = JSON.parse(dataStr);
+    showNotification('データを貼り付けました！');
+  } catch {
+    showNotification('データの貼り付けに失敗しました');
   }
 };
 // 初期ノードデータ
@@ -108,9 +66,25 @@ const updateLabel = ({ id, label }) => {
 const toggleNavVisibility = () => {
   isNavVisible.value = !isNavVisible.value;
 };
+
+const notification = ref('');
+
+// 一時的な通知を表示
+const showNotification = (message) => {
+  notification.value = message;
+  setTimeout(() => {
+    notification.value = '';
+  }, 2000); // 2秒後に消える
+};
+
 </script>
 
 <template>
+  <div style="position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2000;">
+    <div v-if="notification" class="notification">
+      {{ notification }}
+    </div>
+  </div>
   <div style="display: flex; height: 100vh; width: 100vw; padding: 0; overflow: hidden;">
     <button @click="exportData" style="position: fixed; top: 8px; left: 10px; z-index: 1000;">
       コピー
