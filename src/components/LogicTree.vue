@@ -63,7 +63,7 @@
           :y1="getNode(node.parentId)?.y || node.y || 0"
           :x2="node.x || 0"
           :y2="node.y || 0"
-          stroke="black"
+          stroke="grey"
           stroke-width="2"
         />
         <!-- ノードを描画 -->
@@ -79,6 +79,7 @@
           @add-child="addChildNode"
           @update-label="updateNodeLabel"
           @delete-node="deleteNode"
+          @update-color="updateNodeColor"
         />
       </g>
     </svg>
@@ -356,6 +357,13 @@ export default {
       // 🔹 ノード配置 & 階層情報を即時更新
       this.arrangeNodes(this.nodes);
       this.updateLevels(this.nodes);
+    },
+    updateNodeColor({ id, color }) {
+      const node = this.nodes.find((node) => node.id === id);
+      if (node) {
+        node.color = color;
+        this.$emit("update-tree", [...this.nodes]);
+      }
     },
   },
   watch: {

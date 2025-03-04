@@ -35,7 +35,7 @@ const importData = async () => {
 };
 // 初期ノードデータ
 const nodes = ref([
-  { id: '1', label: 'Root', x: 400, y: 50, parentId: null }
+  { id: '1', label: 'Root', x: 400, y: 50, parentId: null, color: "lightblue" }
 ]);
 
 const globalNodeCounter = ref(2);
@@ -63,9 +63,9 @@ const updateLabel = ({ id, label }) => {
 };
 
 // ナビゲーションウィンドウの表示切り替え
-const toggleNavVisibility = () => {
-  isNavVisible.value = !isNavVisible.value;
-};
+// const toggleNavVisibility = () => {
+//   isNavVisible.value = !isNavVisible.value;
+// };
 
 const notification = ref('');
 
@@ -123,7 +123,7 @@ const showNotification = (message) => {
       />
     </div>
 
-    <!-- ナビゲーションウィンドウ -->
+    <!-- ナビゲーションウィンドウ
     <div
       v-if="isNavVisible"
       style="flex: 2; padding: 10px; overflow-y: auto;"
@@ -133,15 +133,15 @@ const showNotification = (message) => {
         @select-node="selectNode"
         @update-label="updateLabel"
       />
-    </div>
+    </div> -->
 
     <!-- トグルボタン -->
-    <button
+    <!-- <button
       @click="toggleNavVisibility"
       style="position: absolute; top: 10px; right: 10px; z-index: 1000;"
     >
       {{ isNavVisible ? '⇒' : '⇐' }}
-    </button>
+    </button> -->
   </div>
 </template>
 

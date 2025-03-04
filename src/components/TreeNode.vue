@@ -1,16 +1,35 @@
 <template>
-  <g :transform="transform">
+  <g :transform="transform" >
+    <!-- +ボタンをノードの真下に表示 -->
+    <foreignObject
+      :x="-(nodeWidth / 2)"
+      :y="nodeHeight / 2 - 3"
+      :width="nodeWidth"
+      height="16"
+    >
+      <button @click.stop="addChild" class="custom-button">+</button>
+    </foreignObject>
+    <!-- -ボタンをノードの真上に表示 -->
+    <foreignObject
+      v-if="node.parentId"
+      :x="-(nodeWidth / 2)"
+      :y="-(nodeHeight / 2) - 15"
+      :width="nodeWidth"
+      height="16"
+    >
+      <button @click.stop="deleteNode" class="custom-button">-</button>
+    </foreignObject>
     <!-- ノードの四角形 -->
     <rect
       :x="-(nodeWidth / 2)"
       :y="-(nodeHeight / 2)"
       :width="nodeWidth"
       :height="nodeHeight"
-      fill="lightblue"
-      @click="selectNode"
+      :fill="node.color || 'lightblue'"
+      @click="toggleColorMenu"
     />
 
-    <!-- テキスト部分（ダブルクリックで編集） -->
+    <!-- テキスト部分 -->
     <text
       v-if="!isEditing"
       :x="0"
@@ -39,24 +58,18 @@
         @keydown.enter="saveLabel"
       />
     </foreignObject>
-    <!-- +ボタンをノードの真下に表示 -->
-    <foreignObject
-      :x="-(nodeWidth / 2)"
-      :y="nodeHeight / 2 - 2"
-      :width="nodeWidth"
-      height="15"
-    >
-      <button @click.stop="addChild" class="custom-button">+</button>
-    </foreignObject>
-    <!-- -ボタンをノードの真上に表示 -->
-    <foreignObject
-      v-if="node.parentId"
-      :x="-(nodeWidth / 2)"
-      :y="-(nodeHeight / 2) - 11"
-      :width="nodeWidth"
-      height="15"
-    >
-      <button @click.stop="deleteNode" class="custom-button">-</button>
+    
+    <!-- カラーメニュー（ノードの右側に表示） -->
+    <foreignObject v-if="isColorMenuVisible" :x="nodeWidth / 2 -130" :y="-15" width="140" height="30">
+      <div class="color-menu">
+        <div
+          v-for="(color, index) in colors"
+          :key="index"
+          class="color-box"
+          :style="{ backgroundColor: color }"
+          @click.stop="changeColor(color)"
+        ></div>
+      </div>
     </foreignObject>
   </g>
 </template>
@@ -75,10 +88,12 @@ export default {
   },
   data() {
     return {
-      isEditing: false, // 編集状態
       editableLabel: this.node.label, // 編集中のラベル
       nodeWidth: 110, // 初期幅（最低幅）
       nodeHeight: 40, // 高さ
+      isColorMenuVisible: false,
+      isEditing: false,
+      colors: ["#ffffa3", "#ceff9e", "lightblue", "#f5b2ac", "#ddbcff"], // 5つの色
     };
   },
   watch: {
@@ -94,9 +109,8 @@ export default {
     },
     getTextY() {
       const lineCount = this.getLineCount(this.node.label);
-      const offset = (lineCount - 1) * 10; // 1行増えるごとに10px上へ
-      return -offset;
-    }
+      return -(lineCount - 1) * 10;
+    },
   },
   methods: {
     selectNode() {
@@ -147,6 +161,49 @@ export default {
         this.$emit('update-label', { id: this.node.id, label: newLabel });
       }
     },
+    toggleColorMenu(event) {
+      event.stopPropagation();
+
+      if (!this.node || typeof this.node.y === "undefined") {
+        console.warn("toggleColorMenu: ノードが未定義のため処理を中断", this.node);
+        return;
+      }
+
+      // カラーメニューの状態を切り替える
+      this.isColorMenuVisible = !this.isColorMenuVisible;
+
+      if (this.isColorMenuVisible) {
+        this.$nextTick(() => {
+          setTimeout(() => {
+            this.updateColorMenuPosition(event);
+          }, 0);
+        });
+
+        document.addEventListener("click", this.hideColorMenu);
+      } else {
+        document.removeEventListener("click", this.hideColorMenu);
+      }
+    },
+    updateColorMenuPosition(event) {
+      if (!event.target) {
+        console.warn("updateColorMenuPosition: event.target が `null`");
+        return;
+      }
+
+      const rect = event.target.getBoundingClientRect();
+      this.colorMenuPosition = {
+        x: rect.right + 10, // ノードの右側に表示
+        y: rect.top + window.scrollY - 5, // スクロール対応
+      };
+    },
+    hideColorMenu() {
+      this.isColorMenuVisible = false;
+      document.removeEventListener("click", this.hideColorMenu);
+    },
+    changeColor(color) {
+      this.$emit("update-color", { id: this.node.id, color });
+      this.hideColorMenu();
+    },
   },
   mounted() {
     this.updateNodeDimensions();
@@ -162,12 +219,14 @@ rect {
   cursor: pointer;
 }
 .custom-button {
-  color: white;
+  color: rgb(255, 255, 255);
   cursor: pointer;
   font-size: 14px;
   padding: 0;
   background-color: lightblue;
-  border: none;
+  border: solid;
+  border-width: 1px;
+  border-color: rgb(207, 207, 207);
   border-radius: 4px; /* 角丸を少しだけ追加 */
   width: 100%;
   height: 100%;
@@ -183,5 +242,22 @@ input {
   width: 100%;
   padding: 5px;
   font-size: 14px;
+}
+.color-menu {
+  position: absolute;
+  display: flex;
+  gap: 5px;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 5px;
+  border-radius: 5px;
+  z-index: 9999;
+}
+.color-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid white;
 }
 </style>
