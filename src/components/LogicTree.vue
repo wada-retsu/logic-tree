@@ -75,6 +75,7 @@
           :y="node.y"
           :isSelected="node === selectedNode"
           :isEditing="node.id === editingNodeId"
+          :saveHistory="saveHistory"
           @select="selectNode"
           @add-child="addChildNode"
           @update-label="updateNodeLabel"
@@ -91,7 +92,7 @@ import TreeNode from './TreeNode.vue';
 
 export default {
   components: { TreeNode },
-  props: ['nodes', 'selectedNode', 'editingNodeId', 'layoutDirection'],
+  props: ['nodes', 'selectedNode', 'editingNodeId', 'layoutDirection', 'saveHistory'],
   emits: ['select-node', 'update-tree', 'update-label'],
   data() {
     return {
@@ -298,7 +299,6 @@ export default {
       }
 
       this.levels = newLevels;
-      console.log("🔹 更新された階層:", this.levels);
     },
     arrangeNodes(nodes) {
       const rootNode = nodes.find(node => node.parentId === null);

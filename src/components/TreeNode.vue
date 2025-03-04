@@ -85,6 +85,11 @@ export default {
     x: Number,
     y: Number,
     isSelected: Boolean,
+    saveHistory: {
+      type: Function,
+      required: false,
+      default: () => {}, // 空の関数をデフォルトにする
+    },
   },
   data() {
     return {
@@ -201,9 +206,12 @@ export default {
       document.removeEventListener("click", this.hideColorMenu);
     },
     changeColor(color) {
+      if (typeof this.saveHistory === "function") {
+        this.saveHistory();
+      }
       this.$emit("update-color", { id: this.node.id, color });
       this.hideColorMenu();
-    },
+    }
   },
   mounted() {
     this.updateNodeDimensions();

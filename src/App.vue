@@ -1,7 +1,7 @@
 <script setup>
 import LogicTree from './components/LogicTree.vue';
 import NavigationWindow from './components/NavigationWindow.vue';
-import { ref, nextTick } from 'vue'; // nextTickをインポート
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'; // nextTickをインポート
 
 const layoutDirection = ref('horizotal'); // レイアウト方向 ('vertical' = 上下, 'horizontal' = 左右)
 const logicTreeRef = ref(null); // LogicTreeの参照を管理
@@ -33,6 +33,55 @@ const importData = async () => {
     showNotification('データの貼り付けに失敗しました');
   }
 };
+
+// ノードの履歴管理
+const history = ref([]);      // 履歴（過去のノードの状態）
+const future = ref([]);       // やり直し用の履歴（戻した履歴を保存）
+
+// **履歴を保存する**
+const saveHistory = () => {
+  history.value.push(JSON.stringify(nodes.value));
+  future.value = []; // 新しい履歴が追加されたら、やり直し履歴をクリア
+};
+
+// **元に戻す（Ctrl + Z）**
+const undo = () => {
+  if (history.value.length > 0) {
+    future.value.push(JSON.stringify(nodes.value)); // 現在の状態を未来履歴に保存
+    nodes.value = JSON.parse(history.value.pop());  // 履歴の最後を取得して適用
+  }
+};
+
+// **やり直す（Ctrl + Y）**
+const redo = () => {
+  if (future.value.length > 0) {
+    history.value.push(JSON.stringify(nodes.value)); // 現在の状態を履歴に保存
+    nodes.value = JSON.parse(future.value.pop());    // 未来履歴の最後を取得して適用
+  } else {
+  }
+};
+
+// **Ctrl + Z / Ctrl + Y を監視**
+const handleKeyDown = (event) => {
+  if (event.ctrlKey && event.key === 'z') {
+    event.preventDefault(); // ブラウザのデフォルト動作を防ぐ
+    undo();
+  } else if (event.ctrlKey && event.key === 'y') {
+    event.preventDefault(); // ブラウザのデフォルト動作を防ぐ
+    redo();
+  }
+};
+
+// **キーボードイベントを登録**
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
+});
+
+// **キーボードイベントを削除**
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+});
+
 // 初期ノードデータ
 const nodes = ref([
   { id: '1', label: 'Root', x: 400, y: 50, parentId: null, color: "lightblue" }
@@ -44,18 +93,17 @@ const isNavVisible = ref(false); // ナビゲーションウィンドウの表�
 
 // ノードを選択する
 const selectNode = (node) => {
-  console.log('Selected node:', node);
   selectedNode.value = node;
 };
 
 // ツリーの更新
 const updateTree = (newNodes) => {
-  console.log('Tree updated:', newNodes);
+  saveHistory(); // **変更前の状態を保存**
   nodes.value = newNodes;
 };
 
-// ノードのラベルを更新
 const updateLabel = ({ id, label }) => {
+  saveHistory();
   const node = nodes.value.find(node => node.id === id);
   if (node) {
     node.label = label;
@@ -120,6 +168,7 @@ const showNotification = (message) => {
         :globalNodeCounter="globalNodeCounter"
         @update-tree="updateTree"
         @update-label="updateLabel"
+        @save-history="saveHistory"
       />
     </div>
 
