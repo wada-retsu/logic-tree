@@ -125,6 +125,10 @@ const showNotification = (message) => {
   }, 2000); // 2秒後に消える
 };
 
+const openForm = () => {
+  window.open("https://forms.office.com/r/K2NZmQhw5X", "_blank");
+};
+
 </script>
 
 <template>
@@ -148,6 +152,11 @@ const showNotification = (message) => {
       全体表示
     </button> -->
     <!-- ロジックツリー -->
+    <button 
+      @click="openForm" 
+      style="position: fixed; top: 8px; right: 10px; z-index: 1000;">
+      ご意見・ご感想フォーム
+    </button>
     <div
       :style="{
         flex: isNavVisible ? '8' : '1',
