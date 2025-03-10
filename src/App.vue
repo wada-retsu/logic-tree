@@ -155,7 +155,7 @@ const openForm = () => {
     <button 
       @click="openForm" 
       style="position: fixed; top: 8px; right: 10px; z-index: 1000;">
-      ご意見・ご感想フォーム
+      アンケート
     </button>
     <div
       :style="{
