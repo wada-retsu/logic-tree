@@ -84,7 +84,7 @@ onUnmounted(() => {
 
 // 初期ノードデータ
 const nodes = ref([
-  { id: '1', label: 'Root', x: 400, y: 50, parentId: null, color: "lightblue" }
+  { id: '1', label: 'Root', x: 400, y: 50, parentId: null, color: "#D8DCDC" }
 ]);
 
 const globalNodeCounter = ref(2);
@@ -152,11 +152,6 @@ const openForm = () => {
       全体表示
     </button> -->
     <!-- ロジックツリー -->
-    <button 
-      @click="openForm" 
-      style="position: fixed; top: 8px; right: 10px; z-index: 1000;">
-      アンケート
-    </button>
     <div
       :style="{
         flex: isNavVisible ? '8' : '1',
@@ -208,7 +203,7 @@ const openForm = () => {
   padding: 0;
 }
 button {
-  background-color: lightblue;
+  background-color: #D8DCDC;
   border: none;
   border-radius: 5px;
   padding: 10px 20px;

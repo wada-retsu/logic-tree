@@ -12,8 +12,8 @@
     <!-- -ボタンをノードの真上に表示 -->
     <foreignObject
       v-if="node.parentId"
-      :x="-(nodeWidth / 2)"
-      :y="-(nodeHeight / 2) - 15"
+      :x="-(nodeWidth / 2) - 0.3"
+      :y="-(nodeHeight / 2) - 13"
       :width="nodeWidth"
       height="16"
     >
@@ -25,8 +25,8 @@
       :y="-(nodeHeight / 2)"
       :width="nodeWidth"
       :height="nodeHeight"
-      :fill="node.color || 'lightblue'"
-      @click="toggleColorMenu"
+      :fill="node.color || '#D8DCDC'"
+      @click="handleNodeClick"
     />
 
     <!-- テキスト部分 -->
@@ -71,6 +71,21 @@
         ></div>
       </div>
     </foreignObject>
+    <!-- 入れ替えモードボタン -->
+    <foreignObject
+      :x="nodeWidth / 2 - 30"
+      :y="-nodeHeight / 2 - 20"
+      :width="70"
+      :height="70"
+    >
+    <button 
+      @click.stop="toggleSwapMode" 
+      class="swap-button"
+      :class="{ 'swap-button-large': isSwapMode && selectedNode && selectedNode.id !== node.id }"
+    >
+      <span class="icon"></span>
+    </button>
+    </foreignObject>
   </g>
 </template>
 
@@ -85,12 +100,15 @@ export default {
     x: Number,
     y: Number,
     isSelected: Boolean,
+    isSwapMode: Boolean, // 入れ替えモード中かどうか
+    selectedNode: Object, // 入れ替え元（最初に選択したノード）
     saveHistory: {
       type: Function,
       required: false,
       default: () => {}, // 空の関数をデフォルトにする
     },
   },
+  emits: ["toggle-swap-mode", "select-for-swap"],
   data() {
     return {
       editableLabel: this.node.label, // 編集中のラベル
@@ -98,7 +116,7 @@ export default {
       nodeHeight: 40, // 高さ
       isColorMenuVisible: false,
       isEditing: false,
-      colors: ["#ffffa3", "#ceff9e", "lightblue", "#f5b2ac", "#ddbcff"], // 5つの色
+      colors: ["#36ABB5", "#B4ACD0", "#D8DCDC", "#EB6D80", "#F29600"], // 5つの色
     };
   },
   watch: {
@@ -211,7 +229,23 @@ export default {
       }
       this.$emit("update-color", { id: this.node.id, color });
       this.hideColorMenu();
-    }
+    },
+    toggleSwapMode() {
+      this.$emit("toggle-swap-mode", this.node); // 親コンポーネントで全ノードに適用
+    },
+    selectForSwap() {
+      if (this.isSwapMode && this.selectedNode?.id !== this.node.id) {
+        this.$emit("select-for-swap", this.node);
+        this.isSwapMode = false; // 入れ替え完了後、自動でモード解除
+      }
+    },
+    handleNodeClick(event) {
+      if (this.isSwapMode) {
+        this.selectForSwap();
+      } else {
+        this.toggleColorMenu(event);
+      }
+    },
   },
   mounted() {
     this.updateNodeDimensions();
@@ -227,14 +261,11 @@ rect {
   cursor: pointer;
 }
 .custom-button {
-  color: rgb(255, 255, 255);
+  color: rgb(155, 155, 155);
   cursor: pointer;
   font-size: 14px;
   padding: 0;
-  background-color: lightblue;
-  border: solid;
-  border-width: 1px;
-  border-color: rgb(207, 207, 207);
+  background-color: #D8DCDC;
   border-radius: 4px; /* 角丸を少しだけ追加 */
   width: 100%;
   height: 100%;
@@ -244,7 +275,8 @@ rect {
   text-align: center; /* テキストを中央揃え */
 }
 .custom-button:hover {
-  background-color: deepskyblue; /* ホバー時の色 */
+  background-color: #C8C9CA; /* ホバー時の色 */
+  border-color: #D8DCDC;
 }
 input {
   width: 100%;
@@ -267,5 +299,30 @@ input {
   border-radius: 50%;
   cursor: pointer;
   border: 1px solid white;
+}
+.swap-button {
+  background-color: #D8DCDC;
+  border: solid 1px;
+  border-color: white;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.swap-button-large {
+  transform: scale(1.2,1.2);
+}
+.swap-button:hover {
+  background-color: #D8DCDC;
+}
+.icon:before{
+  color: rgb(113, 113, 113);
+	font-style: normal;
+	font-variant: normal;
+	text-rendering: auto;
+	-webkit-font-smoothing: antialiased;
+	font-family: "Font Awesome 5 Free"; 
+	font-weight: 900; /* アイコン種類に対応したFont-Weight */
+	content: '\f2f1'; /* アイコンのUnicode */
 }
 </style>

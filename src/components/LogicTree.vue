@@ -81,6 +81,10 @@
           @update-label="updateNodeLabel"
           @delete-node="deleteNode"
           @update-color="updateNodeColor"
+          :isSwapMode="isSwapMode"
+          :selectedNode="selectedNode"
+          @toggle-swap-mode="toggleSwapMode"
+          @select-for-swap="selectForSwap"
         />
       </g>
     </svg>
@@ -98,8 +102,8 @@ export default {
     return {
       globalNodeCounter: 1,
       baseY: 50,
-      nodeSpacingY: 120,
-      nodeSpacingX: 120,
+      nodeSpacingY: 150,
+      nodeSpacingX: 150,
       svgWidth: 0,
       svgHeight: window.innerHeight,
       scale: 1, // 現在のスケール値
@@ -110,7 +114,9 @@ export default {
       padding: 20, // 余白 (px)
       isDragging: false, // ドラッグ中フラグ
       dragStart: { x: 0, y: 0 }, // ドラッグ開始位置
-      levels: [{ id: 1, name: 'レベル 1' }] // 🔹 階層をオブジェクト形式にする
+      levels: [{ id: 1, name: 'レベル 1' }], // 🔹 階層をオブジェクト形式にする
+      isSwapMode: false,
+      selectedNode: null, // 入れ替え元のノード
     };
   },
   mounted() {
@@ -364,6 +370,47 @@ export default {
         node.color = color;
         this.$emit("update-tree", [...this.nodes]);
       }
+    },
+    toggleSwapMode(node) {
+      if (this.selectedNode === null) {
+        // 1回目のボタン押下（入れ替えモード開始）
+        this.isSwapMode = true;
+        this.selectedNode = node;
+      } else {
+        // 2回目のボタン押下（入れ替え実行）
+        this.swapNodeData(this.selectedNode, node);
+        this.isSwapMode = false; // 入れ替え完了後、モード解除
+        this.selectedNode = null;
+      }
+    },
+    selectForSwap(targetNode) {
+      if (this.selectedNode && targetNode.id !== this.selectedNode.id) {
+        this.swapNodeData(this.selectedNode, targetNode);
+        this.isSwapMode = false; // 入れ替え完了後、モード解除
+        this.selectedNode = null;
+      }
+    },
+    swapNodeData(nodeA, nodeB) {
+      // 親子関係を入れ替えずにIDベースでデータを交換
+      const tempLabel = nodeA.label;
+      const tempColor = nodeA.color;
+      const tempX = nodeA.x;
+      const tempY = nodeA.y;
+
+      nodeA.label = nodeB.label;
+      nodeA.color = nodeB.color;
+      nodeA.x = nodeB.x;
+      nodeA.y = nodeB.y;
+
+      nodeB.label = tempLabel;
+      nodeB.color = tempColor;
+      nodeB.x = tempX;
+      nodeB.y = tempY;
+
+      // ノードを再配置（ツリー構造を保持する）
+      this.arrangeNodes(this.nodes);
+
+      this.$emit("update-tree", [...this.nodes]); // ツリー更新
     },
   },
   watch: {
